@@ -31,6 +31,8 @@ export interface VaultUiState {
   pins?: Record<string, unknown[]>;
   /** provider session id -> time pinned in the sidebar */
   sessionPins?: Record<string, number>;
+  /** provider session id -> time hidden from the everyday session lists */
+  hiddenSessions?: Record<string, number>;
   sessionTitles?: Record<string, string>;
   /** child provider session id -> parent provider session id */
   forkParents?: Record<string, string>;
@@ -76,6 +78,7 @@ export interface VaultUiStatePatch {
   sessionGoals?: Record<string, UiSessionGoal | null>;
   pins?: Record<string, unknown[] | null>;
   sessionPins?: Record<string, number | null>;
+  hiddenSessions?: Record<string, number | null>;
   sessionTitles?: Record<string, string | null>;
   forkParents?: Record<string, string | null>;
   chatGroups?: Record<string, UiChatGroup | null>;
@@ -367,6 +370,8 @@ export class VaultUiStateStore {
         state.pins = patchUnknownArrayRecord(state.pins, next.pins);
       if (next.sessionPins && typeof next.sessionPins === "object")
         state.sessionPins = patchNumberRecord(state.sessionPins, next.sessionPins);
+      if (next.hiddenSessions && typeof next.hiddenSessions === "object")
+        state.hiddenSessions = patchNumberRecord(state.hiddenSessions, next.hiddenSessions);
       if (next.sessionTitles && typeof next.sessionTitles === "object")
         state.sessionTitles = patchStringRecord(state.sessionTitles, next.sessionTitles);
       if (next.forkParents && typeof next.forkParents === "object")
@@ -753,6 +758,9 @@ function normalizeUiState(value: unknown): PersistedVaultUiState {
     ...(input.pins && typeof input.pins === "object" ? { pins: structuredClone(input.pins) } : {}),
     ...(input.sessionPins && typeof input.sessionPins === "object"
       ? { sessionPins: cleanNumberRecord(input.sessionPins) }
+      : {}),
+    ...(input.hiddenSessions && typeof input.hiddenSessions === "object"
+      ? { hiddenSessions: cleanNumberRecord(input.hiddenSessions) }
       : {}),
     ...(input.sessionTitles && typeof input.sessionTitles === "object"
       ? { sessionTitles: cleanStringRecord(input.sessionTitles) }

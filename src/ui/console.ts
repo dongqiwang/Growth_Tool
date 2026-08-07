@@ -101,6 +101,8 @@ export interface SessionView {
 
 export interface ConsoleView {
   sessions: SessionView[];
+  /** Unique per Attend process. Existing tabs reload in place after a restart or upgrade. */
+  serviceInstanceId?: string;
   /** Active one-shot jobs projected into session cards and the existing queue surfaces. */
   schedules?: ScheduledItem[];
   knownDirs: string[];
@@ -333,6 +335,7 @@ const STYLE = `
   .theme-toggle .theme-sun { display: none; }
   html[data-theme="dark"] .theme-toggle .theme-sun { display: block; }
   html[data-theme="dark"] .theme-toggle .theme-moon { display: none; }
+  .language-toggle { min-width: 2rem; width: auto; padding: 0 0.42rem; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; }
   .panel-toggle.on { color: var(--accent); background: var(--accent-soft); }
   .panel-toggle svg { fill: none; }
   @container (min-width: 420px) {
@@ -611,6 +614,12 @@ const STYLE = `
   #list.virtualized { overflow-anchor: none; contain: strict; }
   #list > .session-pin-divider { position: relative; height: 13px; pointer-events: none; }
   #list > .session-pin-divider::after { content: ""; position: absolute; top: 6px; left: 0.95rem; right: 0.95rem; height: 1px; background: var(--line-2); }
+  .session-visibility-filter { flex: 0 0 auto; display: flex; align-items: center; gap: 0.18rem; margin: 0.4rem 0.55rem 0.08rem; padding: 0.18rem; border: 1px solid var(--line-2); border-radius: var(--radius-pill); background: var(--surface-2); box-shadow: var(--shadow-sm); }
+  .session-visibility-option { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.3rem 0.58rem; border: 0; border-radius: var(--radius-pill); background: transparent; box-shadow: none; color: var(--ink-4); font-size: 0.72rem; font-weight: 700; line-height: 1; }
+  .session-visibility-option:hover { background: var(--button-hover); color: var(--ink-2); box-shadow: none; }
+  .session-visibility-option.on { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
+  .session-visibility-count { min-width: 1.15rem; padding: 0.08rem 0.3rem; border-radius: var(--radius-pill); background: var(--surface-3); color: var(--ink-4); font-size: 0.62rem; font-variant-numeric: tabular-nums; }
+  .session-visibility-option.on .session-visibility-count { background: var(--accent-soft); color: var(--accent); }
   .sidebar-spacer { width: 1px; height: 0; pointer-events: none; }
   #list .empty { padding: 1.2rem 0.9rem; color: var(--ink-4); font-size: 0.8rem; text-align: center; }
   .session-panel { width: 660px; flex: 0 0 auto; overflow-y: auto; background: var(--surface-2); border-right: 1px solid var(--line); }
@@ -659,6 +668,10 @@ const STYLE = `
   .it-pin svg { width: 0.72rem; height: 0.72rem; stroke: currentColor; stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .it-pin.on { color: var(--accent); opacity: 1; }
   .it-pin.on svg { fill: currentColor; }
+  .it-hide { flex-shrink: 0; width: 1.35rem; height: 1.35rem; display: inline-flex; align-items: center; justify-content: center; margin: -0.2rem -0.28rem -0.2rem -0.12rem; padding: 0; border: 0; border-radius: 4px; background: transparent; box-shadow: none; color: var(--ink-4); opacity: 0.62; transform: none; }
+  .it-hide:hover { color: var(--ink-2); background: var(--button-hover); box-shadow: none; opacity: 1; transform: none; }
+  .it-hide.on { color: var(--accent); opacity: 1; }
+  .it-hide svg { width: 0.78rem; height: 0.78rem; stroke: currentColor; stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .prompt-line.with-tail { display: flex; align-items: baseline; min-width: 0; }
   .prompt-line.with-tail .prompt-line-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .it-queue { flex-shrink: 0; display: inline-flex; align-items: baseline; gap: 0.18rem; margin-left: auto; padding: 0.04rem 0.3rem; border-radius: var(--radius-pill); background: #eef2ff; color: #4f46e5; font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 0.58rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -1754,6 +1767,7 @@ function compactThroughput(value: number): string {
 
 export function renderConsole(v: ConsoleView): string {
   const sessJson = JSON.stringify(v.sessions).replace(/</g, "\\u003c");
+  const serviceInstanceIdJson = JSON.stringify(v.serviceInstanceId ?? "").replace(/</g, "\\u003c");
   const schedulesJson = JSON.stringify(v.schedules ?? []).replace(/</g, "\\u003c");
   const dirsJson = JSON.stringify(v.knownDirs).replace(/</g, "\\u003c");
   const rootsJson = JSON.stringify(v.scopeRoots).replace(/</g, "\\u003c");
@@ -1817,6 +1831,7 @@ export function renderConsole(v: ConsoleView): string {
         <path d="M8 1.2v1.3M8 13.5v1.3M1.2 8h1.3M13.5 8h1.3M3.2 3.2l.9.9M11.9 11.9l.9.9M12.8 3.2l-.9.9M4.1 11.9l-.9.9"></path>
       </svg>
     </button>
+    <button id="languageToggle" class="theme-toggle language-toggle" type="button" title="切换到中文" aria-label="切换到中文">中</button>
     <button id="sessionPanelToggle" class="theme-toggle panel-toggle" type="button" title="open chats panel" aria-label="open chats panel" aria-expanded="false" aria-controls="sessionPanel">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <rect x="1.7" y="2.2" width="12.6" height="11.6" rx="1.6"></rect>
@@ -1852,7 +1867,7 @@ export function renderConsole(v: ConsoleView): string {
   </div>
   <div class="newbox" id="newbox">
     <div class="newhead">
-      <div class="newttl">New session</div>
+      <div class="newttl" id="newSessionTitle">New session</div>
       <button id="newClose" class="newclose" type="button" aria-label="close new session form">✕</button>
     </div>
     <div class="newrow">
@@ -1941,7 +1956,7 @@ export function renderConsole(v: ConsoleView): string {
     </div>
     <div class="taghead">
       <div class="taghead-label">
-        <span class="tagttl">tags</span>
+        <span class="tagttl" id="tagTitle">tags</span>
         <div class="searchwrap tagsearchwrap">
           <input id="tagSearch" class="searchbox" placeholder="Search tags…" autocomplete="off" aria-label="search tags and sessions in this view">
           <button id="tagSearchClear" class="search-clear" type="button" aria-label="clear tag search" hidden>×</button>
@@ -1952,6 +1967,10 @@ export function renderConsole(v: ConsoleView): string {
       <button id="bulkArchiveSeen" class="bulkarchive instant-tip instant-tip-right" type="button" disabled data-tooltip="No seen sessions matching the current view and focus filters to archive">archive 0 seen sessions</button>
     </div>
     <div class="tagchips" id="tagFilters"></div>
+  </div>
+  <div class="session-visibility-filter" id="sessionVisibilityFilter" role="group" aria-label="Filter sessions by visibility">
+    <button class="session-visibility-option" id="sessionVisibilityVisible" type="button" aria-pressed="true"><span id="sessionVisibilityVisibleLabel">Visible</span> <span class="session-visibility-count" id="sessionVisibilityVisibleCount">0</span></button>
+    <button class="session-visibility-option" id="sessionVisibilityHidden" type="button" aria-pressed="false"><span id="sessionVisibilityHiddenLabel">Hidden</span> <span class="session-visibility-count" id="sessionVisibilityHiddenCount">0</span></button>
   </div>
   <div id="list"></div>
 </div>
@@ -2238,6 +2257,7 @@ export function renderConsole(v: ConsoleView): string {
 </div>
 <script>
 window.__SESSIONS__ = ${sessJson};
+window.__SERVICE_INSTANCE_ID__ = ${serviceInstanceIdJson};
 window.__SCHEDULES__ = ${schedulesJson};
 window.__DIRS__ = ${dirsJson};
 window.__ROOTS__ = ${rootsJson};
@@ -2257,6 +2277,7 @@ window.__CHANGELOG__ = ${changelogJson};
 <script>
 (function(){
   var SESS = window.__SESSIONS__ || [];
+  var SERVICE_INSTANCE_ID = window.__SERVICE_INSTANCE_ID__ || '';
   var SCHEDULES = window.__SCHEDULES__ || [];
   var DIRS = window.__DIRS__ || [];
   var ROOTS = window.__ROOTS__ || [];
@@ -2451,6 +2472,8 @@ window.__CHANGELOG__ = ${changelogJson};
   var TAG_FILTER_MODE_KEY = 'attend.tagFilterMode.v1';
   var TAG_ORDER_MODE_KEY = 'attend.tagOrderMode.v1';
   var TAG_HIDDEN_EXPANDED_KEY = 'attend.tagHiddenExpanded.v1';
+  var SESSION_VISIBILITY_FILTER_KEY = 'attend.sessionVisibilityFilter.v1';
+  var UI_LANGUAGE_KEY = 'attend.uiLanguage.v1';
   var PRIORITY_FILTER_KEY = 'attend.priorityFilter.v1';
   function loadTagFilterMode(){
     try{ return localStorage.getItem(TAG_FILTER_MODE_KEY)==='and' ? 'and' : 'or'; }
@@ -2473,6 +2496,58 @@ window.__CHANGELOG__ = ${changelogJson};
   function saveTagHiddenExpanded(){
     try{ localStorage.setItem(TAG_HIDDEN_EXPANDED_KEY, tagHiddenExpanded?'true':'false'); }catch(e){}
   }
+  function loadSessionVisibilityFilter(){
+    try{ return localStorage.getItem(SESSION_VISIBILITY_FILTER_KEY)==='hidden' ? 'hidden' : 'visible'; }
+    catch(e){ return 'visible'; }
+  }
+  function saveSessionVisibilityFilter(){
+    try{ localStorage.setItem(SESSION_VISIBILITY_FILTER_KEY,sessionVisibilityFilter); }catch(e){}
+  }
+  function loadUiLanguage(){
+    try{ return localStorage.getItem(UI_LANGUAGE_KEY)==='zh' ? 'zh' : 'en'; }
+    catch(e){ return 'en'; }
+  }
+  function saveUiLanguage(){
+    try{ localStorage.setItem(UI_LANGUAGE_KEY,uiLanguage); }catch(e){}
+  }
+  var UI_COPY={
+    zh:{
+      searchSessions:'搜索会话…',newSession:'+ 新建',newSessionTitle:'新建会话',tags:'标签',searchTags:'搜索标签…',
+      visible:'未隐藏',hidden:'已隐藏',visibilityFilter:'按可见性筛选会话',all:'全部',active:'进行中',unread:'未读',focus:'焦点',addFocus:'+ 焦点',
+      hideSession:'隐藏会话',showSession:'恢复显示',noHiddenSessions:'暂无隐藏会话',noVisibleSessions:'暂无未隐藏会话',noSessions:'暂无会话',noMatches:'没有匹配结果',
+      openTodos:'打开待办',todos:'待办',switchDark:'切换到深色主题',switchLight:'切换到浅色主题',openChats:'打开会话面板',closeChats:'关闭会话面板',
+      archiveEmpty:'当前筛选中没有可归档的已读会话',switchLanguage:'Switch to English',archivePrefix:'归档 ',archiveSuffix:' 个已读会话',
+      serviceUnavailable:'Attend 正在重启，请稍候…',serviceRestored:'Attend 服务已恢复。',upgradeReady:'新版本已就绪，正在刷新…'
+    }
+  };
+  function uiText(key,fallback){
+    if(uiLanguage==='zh' && UI_COPY.zh[key]!=null) return UI_COPY.zh[key];
+    return fallback==null?key:fallback;
+  }
+  function syncUiLanguageStatic(){
+    document.documentElement.lang=uiLanguage==='zh'?'zh-CN':'en';
+    var languageButton=byId('languageToggle');
+    if(languageButton){ languageButton.textContent=uiLanguage==='zh'?'EN':'中'; languageButton.title=uiText('switchLanguage','切换到中文'); languageButton.setAttribute('aria-label',languageButton.title); }
+    var search=byId('search'); if(search) search.placeholder=uiText('searchSessions','Search sessions…');
+    var newToggle=byId('newToggle'); if(newToggle) newToggle.textContent=uiText('newSession','+ new');
+    var newTitle=byId('newSessionTitle'); if(newTitle) newTitle.textContent=uiText('newSessionTitle','New session');
+    var tagTitle=byId('tagTitle'); if(tagTitle) tagTitle.textContent=uiText('tags','tags');
+    var tagSearch=byId('tagSearch'); if(tagSearch){ tagSearch.placeholder=uiText('searchTags','Search tags…'); tagSearch.setAttribute('aria-label',uiText('searchTags','search tags and sessions in this view')); }
+    var visibility=byId('sessionVisibilityFilter'); if(visibility) visibility.setAttribute('aria-label',uiText('visibilityFilter','Filter sessions by visibility'));
+    var todoToggle=byId('todoHubToggle'); if(todoToggle) todoToggle.setAttribute('aria-label',uiText('openTodos','open todos'));
+    var todoTitle=byId('todoHubTitle'); if(todoTitle) todoTitle.textContent=uiText('todos','Todos');
+    setTheme(currentTheme(),false);
+    syncSessionPanelButton();
+  }
+  function setUiLanguage(language){
+    uiLanguage=language==='zh'?'zh':'en';
+    saveUiLanguage();
+    syncUiLanguageStatic();
+    renderTagFilters();
+    renderSidebar();
+    if(sessionSearchRangeOpen) renderSessionSearchRangeMenu();
+  }
+  function toggleUiLanguage(){ setUiLanguage(uiLanguage==='zh'?'en':'zh'); }
   function loadPinnedTags(){
     var out=[], seen={};
     (VAULT_STATE && Array.isArray(VAULT_STATE.pinnedTags) ? VAULT_STATE.pinnedTags : []).forEach(function(raw){
@@ -2569,6 +2644,8 @@ window.__CHANGELOG__ = ${changelogJson};
   var tagFilterMode = loadTagFilterMode();
   var tagOrderMode = loadTagOrderMode();
   var tagHiddenExpanded = loadTagHiddenExpanded();
+  var sessionVisibilityFilter = loadSessionVisibilityFilter();
+  var uiLanguage = loadUiLanguage();
   var pinnedTags = loadPinnedTags();
   var hiddenTags = loadHiddenTags();
   var priorityFilter = loadPriorityFilter();
@@ -2801,6 +2878,11 @@ window.__CHANGELOG__ = ${changelogJson};
       path('M7 17h10', 'pin-base');
       path('M12 17v4', 'pin-base');
       path('M8 17v-5H6l3-4V3h6v5l3 4h-2v5H8z', 'pin-body');
+    } else if(name==='eye-off'){
+      path('M3.5 3.5l17 17');
+      path('M9.8 9.8a3 3 0 0 0 4.2 4.2');
+      path('M6.2 6.2C4.2 7.6 2.9 9.7 2.2 12c1.7 4.6 5.4 7.5 9.8 7.5 1.6 0 3.1-.4 4.5-1.1');
+      path('M10.1 4.5c.6-.1 1.3-.2 1.9-.2 4.4 0 8.1 2.9 9.8 7.5-.4 1.2-1.1 2.4-1.9 3.4');
     } else if(name==='collapse'){
       path('M6 12h12');
     } else if(name==='comment'){
@@ -3632,6 +3714,7 @@ window.__CHANGELOG__ = ${changelogJson};
       var dark = next === 'dark';
       btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
       btn.title = dark ? 'switch to light theme' : 'switch to dark theme';
+      if(uiLanguage==='zh') btn.title=dark?uiText('switchLight',btn.title):uiText('switchDark',btn.title);
       btn.setAttribute('aria-label', btn.title);
     }
     if(persist){
@@ -3664,7 +3747,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var btn=byId('sessionPanelToggle'); if(!btn) return;
     btn.classList.toggle('on',sessionPanelOpen);
     btn.setAttribute('aria-expanded',sessionPanelOpen?'true':'false');
-    btn.title=sessionPanelOpen?'close chats panel':'open chats panel';
+    btn.title=sessionPanelOpen?uiText('closeChats','close chats panel'):uiText('openChats','open chats panel');
     btn.setAttribute('aria-label',btn.title);
   }
   function setSessionPanelOpen(open,persist){
@@ -4734,9 +4817,9 @@ window.__CHANGELOG__ = ${changelogJson};
       btn.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); setTagView(id); };
       wrap.appendChild(btn);
     }
-    tab('all','All','Show every session without changing Focus tags');
-    tab('active','Active','Generating, unread, and in-progress sessions');
-    tab('unread','Unread','Sessions generating now or with an unseen reply');
+    tab('all',uiText('all','All'),'Show every session without changing Focus tags');
+    tab('active',uiText('active','Active'),'Generating, unread, and in-progress sessions');
+    tab('unread',uiText('unread','Unread'),'Sessions generating now or with an unseen reply');
     focusViews.forEach(function(view){
       var on=activeTagView==='focus' && view.id===activeFocusId;
       var group=el('span','viewtabgroup'+(on?' on':''));
@@ -4754,7 +4837,7 @@ window.__CHANGELOG__ = ${changelogJson};
       }
       wrap.appendChild(group);
     });
-    var add=el('button','viewtab','+ focus');
+    var add=el('button','viewtab',uiText('addFocus','+ focus'));
     add.type='button';
     add.title='Add another Focus tab';
     add.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); addFocusView(); };
@@ -4815,6 +4898,7 @@ window.__CHANGELOG__ = ${changelogJson};
   }
   function sessionMatchesBulkArchiveScope(s){
     if(!s) return false;
+    if(isSessionHidden(s)!==(sessionVisibilityFilter==='hidden')) return false;
     if(activeTagView==='unread') return false;
     if(activeTagView==='active' && !(s.generating || s.unread || s.seen)) return false;
     return sessionMatchesPriorityFilter(s) && sessionMatchesTagFilter(s, currentFilterTags()) && sessionMatchesTagSearch(s) && sessionMatchesSidebarSearch(s);
@@ -4828,10 +4912,11 @@ window.__CHANGELOG__ = ${changelogJson};
     var btn=byId('bulkArchiveSeen'); if(!btn) return;
     var count=bulkArchiveSeenTargets().length;
     btn.textContent='archive '+count+' seen session'+(count===1?'':'s');
+    if(uiLanguage==='zh') btn.textContent=uiText('archivePrefix','archive ')+count+uiText('archiveSuffix',' seen sessions');
     btn.disabled=bulkArchiveSeenBusy || count===0;
     var tip=count
       ? ('Immediately archive all '+count+' seen session'+(count===1?'':'s')+' matching the current view and focus filters')
-      : 'No seen sessions matching the current view and focus filters to archive';
+      : uiText('archiveEmpty','No seen sessions matching the current view and focus filters to archive');
     btn.setAttribute('data-tooltip', tip);
     btn.setAttribute('aria-label', tip);
   }
@@ -12366,6 +12451,38 @@ window.__CHANGELOG__ = ${changelogJson};
     var id=String(s&&s.sessionId||'');
     return id&&VAULT_STATE.sessionPins ? Number(VAULT_STATE.sessionPins[id])||0 : 0;
   }
+  function sessionHiddenTime(s){
+    var id=String(s&&s.sessionId||'');
+    return id&&VAULT_STATE.hiddenSessions ? Number(VAULT_STATE.hiddenSessions[id])||0 : 0;
+  }
+  function isSessionHidden(s){ return !!sessionHiddenTime(s); }
+  function matchesSessionVisibility(s){
+    return isSessionHidden(s)===(sessionVisibilityFilter==='hidden') && matchesFilter(s);
+  }
+  function syncSessionVisibilityFilter(){
+    var visibleButton=byId('sessionVisibilityVisible'),hiddenButton=byId('sessionVisibilityHidden');
+    var visibleCount=0,hiddenCount=0;
+    SESS.forEach(function(s){
+      if(!matchesFilter(s)) return;
+      if(isSessionHidden(s)) hiddenCount++; else visibleCount++;
+    });
+    var showingHidden=sessionVisibilityFilter==='hidden';
+    if(visibleButton){ visibleButton.classList.toggle('on',!showingHidden); visibleButton.setAttribute('aria-pressed',showingHidden?'false':'true'); }
+    if(hiddenButton){ hiddenButton.classList.toggle('on',showingHidden); hiddenButton.setAttribute('aria-pressed',showingHidden?'true':'false'); }
+    var visibleText=byId('sessionVisibilityVisibleLabel'); if(visibleText) visibleText.textContent=uiText('visible','Visible');
+    var hiddenText=byId('sessionVisibilityHiddenLabel'); if(hiddenText) hiddenText.textContent=uiText('hidden','Hidden');
+    var visibleLabel=byId('sessionVisibilityVisibleCount'); if(visibleLabel) visibleLabel.textContent=String(visibleCount);
+    var hiddenLabel=byId('sessionVisibilityHiddenCount'); if(hiddenLabel) hiddenLabel.textContent=String(hiddenCount);
+  }
+  function setSessionVisibilityFilter(value){
+    var next=value==='hidden'?'hidden':'visible';
+    if(sessionVisibilityFilter===next){ syncSessionVisibilityFilter(); return; }
+    sessionVisibilityFilter=next;
+    saveSessionVisibilityFilter();
+    var list=byId('list'); if(list) list.scrollTop=0;
+    var panel=byId('sessionPanel'); if(panel) panel.scrollTop=0;
+    renderSidebar();
+  }
   function compareSessionPins(a,b){
     var ap=sessionPinTime(a), bp=sessionPinTime(b);
     if(!!ap!==!!bp) return ap ? -1 : 1;
@@ -12404,6 +12521,20 @@ window.__CHANGELOG__ = ${changelogJson};
     saveVaultUiState({sessionPins:patch});
     sortSessions(); renderSidebar();
     if(cur&&String(cur.sessionId||'')===id) syncHeaderPinButton();
+  }
+  function toggleSessionHidden(s){
+    var id=String(s&&s.sessionId||''); if(!id) return;
+    if(!VAULT_STATE.hiddenSessions || typeof VAULT_STATE.hiddenSessions!=='object') VAULT_STATE.hiddenSessions={};
+    var patch={};
+    if(isSessionHidden(s)){
+      delete VAULT_STATE.hiddenSessions[id];
+      patch[id]=null;
+    } else {
+      VAULT_STATE.hiddenSessions[id]=Date.now();
+      patch[id]=VAULT_STATE.hiddenSessions[id];
+    }
+    saveVaultUiState({hiddenSessions:patch});
+    renderSidebar();
   }
   // Bump a session to the top on user-authored activity. Plainly opening a tab is
   // handled by engagement telemetry and must not affect recent sorting.
@@ -13425,8 +13556,8 @@ window.__CHANGELOG__ = ${changelogJson};
   function sessionListEmptyText(){
     var filterTags=currentFilterTags();
     return (filterQ||tagSearchQ||activeTagView!=='all'||filterTags.length||priorityFilter.length<5)
-      ? ('No matches'+(filterQ?(' for “'+filterQ+'”'):'')+(tagSearchQ?(' · tag search: “'+tagSearchQ+'”'):'')+(priorityFilter.length<5?(' · priority: '+priorityFilterLabel(priorityFilter)):'')+(filterTags.length?(' · tags: '+activeTagLabels().join(', ')):'')+(activeTagView==='unread'?' · Unread':'')+(activeTagView==='active'?' · Active':'')+(activeTagView==='focus'?' · Focus':''))
-      : 'No sessions yet';
+      ? (uiText('noMatches','No matches')+(filterQ?(' for “'+filterQ+'”'):'')+(tagSearchQ?(' · tag search: “'+tagSearchQ+'”'):'')+(priorityFilter.length<5?(' · priority: '+priorityFilterLabel(priorityFilter)):'')+(filterTags.length?(' · tags: '+activeTagLabels().join(', ')):'')+(activeTagView==='unread'?(' · '+uiText('unread','Unread')):'')+(activeTagView==='active'?(' · '+uiText('active','Active')):'')+(activeTagView==='focus'?(' · '+uiText('focus','Focus')):''))
+      : uiText('noSessions','No sessions yet');
   }
   function buildSessionPinDivider(surface){
     var divider=el('div','session-pin-divider');
@@ -13574,11 +13705,13 @@ window.__CHANGELOG__ = ${changelogJson};
     renderViewTabs();
     var list=byId('list');
     indexSidebarForkComponents();
-    sidebarVisibleSessions=SESS.filter(matchesFilter);
+    syncSessionVisibilityFilter();
+    sidebarVisibleSessions=SESS.filter(matchesSessionVisibility);
     sidebarRowCache={}; sidebarRowUse=0;
     resetSidebarRegistrations();
-    list.classList.toggle('virtualized',sidebarVisibleSessions.length>SIDEBAR_VIRTUAL_THRESHOLD);
-    if(sidebarVisibleSessions.length>SIDEBAR_VIRTUAL_THRESHOLD) renderSidebarWindow();
+    var virtualized=sidebarVisibleSessions.length>SIDEBAR_VIRTUAL_THRESHOLD;
+    list.classList.toggle('virtualized',virtualized);
+    if(virtualized) renderSidebarWindow();
     else {
       list.innerHTML='';
       var boundary=sessionPinBoundaryIndex(sidebarVisibleSessions);
@@ -13589,7 +13722,10 @@ window.__CHANGELOG__ = ${changelogJson};
     }
     if(sidebarVisibleSessions.length===0){
       var empty=el('div','empty');
-      empty.textContent=sessionListEmptyText();
+      var fallback=sessionListEmptyText();
+      empty.textContent=fallback===uiText('noSessions','No sessions yet')
+        ? (sessionVisibilityFilter==='hidden'?uiText('noHiddenSessions','No hidden sessions'):uiText('noVisibleSessions','No visible sessions'))
+        : fallback;
       list.appendChild(empty);
     }
     syncBulkArchiveSeenButton();
@@ -13633,7 +13769,7 @@ window.__CHANGELOG__ = ${changelogJson};
     });
   }
   function syncSessionListsAfterSelection(previous,next){
-    var visible=SESS.filter(matchesFilter);
+    var visible=SESS.filter(matchesSessionVisibility);
     if(!sameSessionSequence(sidebarVisibleSessions,visible)){
       renderSidebar();
       return;
@@ -13645,7 +13781,7 @@ window.__CHANGELOG__ = ${changelogJson};
     renderChatTabs();
   }
   function syncSessionListsAfterPatch(s){
-    var visible=SESS.filter(matchesFilter);
+    var visible=SESS.filter(matchesSessionVisibility);
     if(!sameSessionSequence(sidebarVisibleSessions,visible)){ renderSidebar(); return; }
     sidebarVisibleSessions=visible;
     refreshSessionRowNodes(s);
@@ -13710,6 +13846,12 @@ window.__CHANGELOG__ = ${changelogJson};
         pinButton.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 2.5h6l-1 4 2 2v1H8.7L8 14l-.7-4.5H4v-1l2-2-1-4Z"></path></svg>';
         pinButton.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); toggleSessionPin(s); };
         trow.appendChild(pinButton);
+        var hidden=isSessionHidden(s);
+        var hideButton=el('button','it-hide'+(hidden?' on':''));
+        setIconButton(hideButton,'eye-off',hidden?uiText('showSession','Show session'):uiText('hideSession','Hide session'));
+        hideButton.setAttribute('aria-pressed',hidden?'true':'false');
+        hideButton.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); toggleSessionHidden(s); };
+        trow.appendChild(hideButton);
       }
       item.appendChild(trow);
       // Keep the full current handoff context directly under the brief.
@@ -14932,6 +15074,30 @@ window.__CHANGELOG__ = ${changelogJson};
     if(liveConnectionFailed) showToast('Attend service connection restored.', 'live-restored');
     liveConnectionFailed=false;
   }
+  var serviceMetaTimer=0;
+  var serviceMetaBusy=false;
+  var serviceReloading=false;
+  function scheduleServiceMetaCheck(delay){
+    if(serviceReloading || serviceMetaTimer) return;
+    serviceMetaTimer=window.setTimeout(function(){ serviceMetaTimer=0; checkServiceInstance(); },Math.max(0,Number(delay)||0));
+  }
+  function checkServiceInstance(){
+    if(serviceReloading || serviceMetaBusy) return;
+    serviceMetaBusy=true;
+    E2EE.rawFetch('/app-meta',{cache:'no-store'})
+      .then(function(response){ if(!response.ok) throw new Error('service unavailable'); return response.json(); })
+      .then(function(meta){
+        var next=String(meta&&meta.serviceInstanceId||'');
+        if(!next) return;
+        if(!SERVICE_INSTANCE_ID){ SERVICE_INSTANCE_ID=next; return; }
+        if(next===SERVICE_INSTANCE_ID) return;
+        serviceReloading=true;
+        showToast(uiText('upgradeReady','Updated Attend is ready. Refreshing…'),'live-restored',true);
+        window.setTimeout(function(){ window.location.reload(); },80);
+      })
+      .catch(function(){ scheduleServiceMetaCheck(1000); })
+      .finally(function(){ serviceMetaBusy=false; });
+  }
   function openLiveStateStream(){
     if(!window.EventSource){
       markLiveConnectionFailed();
@@ -14940,6 +15106,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var source=new EventSource('/chat/live-stream');
     source.onopen=function(){
       markLiveRestored();
+      scheduleServiceMetaCheck(0);
     };
     source.onmessage=function(e){
       markLiveRestored();
@@ -14951,6 +15118,7 @@ window.__CHANGELOG__ = ${changelogJson};
     };
     source.onerror=function(){
       markLiveConnectionFailed();
+      scheduleServiceMetaCheck(500);
     };
   }
   function reduceLatestLiveSnapshotEvent(sessionId, clientSessionId, ev, emittedAt){
@@ -15807,6 +15975,7 @@ window.__CHANGELOG__ = ${changelogJson};
   }
 
   function initApp(){
+  syncUiLanguageStatic();
   syncSchedules(SCHEDULES,true);
   var scheduleNew=byId('scheduleNew'); if(scheduleNew){
     setIconButton(scheduleNew,'clock','schedule new session'); scheduleNew.setAttribute('aria-expanded','false');
@@ -15871,6 +16040,7 @@ window.__CHANGELOG__ = ${changelogJson};
   // Stream active-session snapshots so background tabs show generating state.
   // A lost stream is reported as an Attend service error; it is never masked by polling.
   openLiveStateStream();
+  window.setInterval(checkServiceInstance,15000);
   // Vendor CLIs can rewrite local model caches during startup. Re-read them after
   // the first render so newly advertised models appear without reloading Attend.
   refreshClaudeModels();
@@ -16100,6 +16270,9 @@ window.__CHANGELOG__ = ${changelogJson};
   });
   byId('tagModeToggle').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); toggleTagFilterMode(); };
   byId('tagOrderToggle').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); toggleTagOrderMode(); };
+  byId('languageToggle').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); toggleUiLanguage(); };
+  byId('sessionVisibilityVisible').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); setSessionVisibilityFilter('visible'); };
+  byId('sessionVisibilityHidden').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); setSessionVisibilityFilter('hidden'); };
   byId('bulkArchiveSeen').onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); archiveSeenInView(); };
   function sessionSearchRangeDef(){
     for(var i=0;i<SESSION_SEARCH_RANGES.length;i++) if(SESSION_SEARCH_RANGES[i].value===sessionSearchRange) return SESSION_SEARCH_RANGES[i];

@@ -211,6 +211,8 @@ describe("GET /", () => {
 
     const res = await app.request("/");
     const html = await res.text();
+    const metaRes = await app.request("/app-meta");
+    const meta = (await metaRes.json()) as { serviceInstanceId: string };
     const vaultName = path.basename(vaultRoot);
 
     expect(res.status).toBe(200);
@@ -220,6 +222,9 @@ describe("GET /", () => {
     );
     expect(html).toContain('window.__CHANGELOG__ = "# Changelog\\n');
     expect(html).toContain("## 1.0.0 — 2026-07-12");
+    expect(metaRes.headers.get("cache-control")).toBe("no-store");
+    expect(meta.serviceInstanceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(html).toContain(`window.__SERVICE_INSTANCE_ID__ = "${meta.serviceInstanceId}"`);
     expect(html).not.toContain(">locked</span>");
   });
 });
@@ -556,6 +561,7 @@ describe("vault UI state", () => {
           },
         ],
         sessionPins: { s1: 123 },
+        hiddenSessions: { s2: 124 },
         sessionTitles: { s1: "Customer escalation" },
         forkParents: { s2: "s1" },
       }),
@@ -573,6 +579,7 @@ describe("vault UI state", () => {
         },
       },
       sessionPins: { s1: 123 },
+      hiddenSessions: { s2: 124 },
       sessionTitles: { s1: "Customer escalation" },
       forkParents: { s2: "s1" },
     });

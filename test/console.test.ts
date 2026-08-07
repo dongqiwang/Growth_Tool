@@ -38,6 +38,33 @@ describe("renderConsole", () => {
     );
   });
 
+  it("keeps hidden sessions behind a persistent visibility filter", () => {
+    const html = renderConsole(view);
+    expect(html).toContain("function toggleSessionHidden(s)");
+    expect(html).toContain('id="sessionVisibilityVisible"');
+    expect(html).toContain('id="sessionVisibilityHidden"');
+    expect(html).toContain("function setSessionVisibilityFilter(value)");
+    expect(html).toContain("SESS.filter(matchesSessionVisibility)");
+    expect(html).toContain("hiddenSessions:patch");
+  });
+
+  it("offers a persistent Chinese and English interface toggle", () => {
+    const html = renderConsole(view);
+    expect(html).toContain('id="languageToggle"');
+    expect(html).toContain("function toggleUiLanguage()");
+    expect(html).toContain("attend.uiLanguage.v1");
+    expect(html).toContain("搜索会话…");
+    expect(html).toContain("if(uiLanguage==='zh' && UI_COPY.zh[key]!=null)");
+  });
+
+  it("keeps an open panel alive and reloads it in place after a service restart", () => {
+    const html = renderConsole({ ...view, serviceInstanceId: "boot-1" });
+    expect(html).toContain('window.__SERVICE_INSTANCE_ID__ = "boot-1"');
+    expect(html).toContain("E2EE.rawFetch('/app-meta',{cache:'no-store'})");
+    expect(html).toContain("if(next===SERVICE_INSTANCE_ID) return");
+    expect(html).toContain("window.location.reload()");
+  });
+
   it("renders tool titles separately from the collapse control", () => {
     const html = renderConsole(view);
     expect(html).toContain(

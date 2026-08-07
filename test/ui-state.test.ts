@@ -109,6 +109,7 @@ describe("VaultUiStateStore", () => {
       },
       pins: { "attend.pins.v1:s1": [{ key: "m:1", text: "keep" }] },
       sessionPins: { s1: 123 },
+      hiddenSessions: { s2: 124 },
       sessionTitles: { s1: "Customer escalation" },
       forkParents: { s2: "s1" },
       chatGroups: {
@@ -160,6 +161,7 @@ describe("VaultUiStateStore", () => {
       },
       pins: { "attend.pins.v1:s1": [{ key: "m:1", text: "keep" }] },
       sessionPins: { s1: 123 },
+      hiddenSessions: { s2: 124 },
       sessionTitles: { s1: "Customer escalation" },
       forkParents: { s2: "s1" },
       chatGroups: {

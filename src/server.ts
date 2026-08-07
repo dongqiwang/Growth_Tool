@@ -1224,6 +1224,7 @@ export function createApp(
   config: AttendConfig,
   deps: AppDeps = createDefaultAppDeps(config),
 ): Hono {
+  const serviceInstanceId = crypto.randomUUID();
   const e2ee = createE2ee(config.e2eePassphrase);
   const transcriptIndex = deps.transcriptIndex ?? new TranscriptPathIndex();
   const engine = deps.engine;
@@ -1860,6 +1861,7 @@ export function createApp(
         vaultState.sessionRunConfigs,
         daemonUiContext,
       ),
+      serviceInstanceId,
       schedules: visibleSchedules(),
       knownDirs: dirs,
       scopeRoots: config.scopeRoots,
@@ -1890,6 +1892,7 @@ export function createApp(
 
   const lockedConsoleView = (): ConsoleView => ({
     sessions: [],
+    serviceInstanceId,
     schedules: [],
     knownDirs: [],
     scopeRoots: [],
@@ -2260,6 +2263,7 @@ export function createApp(
       pathname === "/" ||
       pathname.startsWith("/assets/") ||
       pathname.startsWith("/e2ee/") ||
+      pathname === "/app-meta" ||
       pathname === "/chat/live-stream"
     ) {
       return next();
@@ -2273,6 +2277,11 @@ export function createApp(
     c.header("Content-Type", "text/javascript; charset=utf-8");
     c.header("Cache-Control", "public, max-age=31536000, immutable");
     return c.body(browserAsset(name));
+  });
+
+  app.get("/app-meta", (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json({ serviceInstanceId });
   });
 
   // Main view: slock-style console — all sessions aggregated, chat in-browser.
@@ -2532,6 +2541,7 @@ export function createApp(
       sessionGoals?: unknown;
       pins?: unknown;
       sessionPins?: unknown;
+      hiddenSessions?: unknown;
       sessionTitles?: unknown;
       forkParents?: unknown;
       chatGroups?: unknown;
@@ -2561,6 +2571,8 @@ export function createApp(
       patch.pins = body.pins as Record<string, unknown[] | null>;
     if (body.sessionPins && typeof body.sessionPins === "object")
       patch.sessionPins = body.sessionPins as Record<string, number | null>;
+    if (body.hiddenSessions && typeof body.hiddenSessions === "object")
+      patch.hiddenSessions = body.hiddenSessions as Record<string, number | null>;
     if (body.sessionTitles && typeof body.sessionTitles === "object")
       patch.sessionTitles = body.sessionTitles as Record<string, string | null>;
     if (body.forkParents && typeof body.forkParents === "object")
