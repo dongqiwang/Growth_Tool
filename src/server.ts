@@ -127,6 +127,7 @@ interface AppScheduleRuntime {
 }
 
 const appScheduleRuntimes = new WeakMap<Hono, AppScheduleRuntime>();
+const appPanelPresence = new WeakMap<Hono, () => boolean>();
 const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const EXCEL_MEDIA_BY_EXT: ReadonlyMap<string, FileAttachmentMediaType> = new Map([
   ["xls", "application/vnd.ms-excel"],
@@ -1225,6 +1226,7 @@ export function createApp(
   deps: AppDeps = createDefaultAppDeps(config),
 ): Hono {
   const serviceInstanceId = crypto.randomUUID();
+  let lastPanelSeenAt = 0;
   const e2ee = createE2ee(config.e2eePassphrase);
   const transcriptIndex = deps.transcriptIndex ?? new TranscriptPathIndex();
   const engine = deps.engine;
@@ -2280,6 +2282,7 @@ export function createApp(
   });
 
   app.get("/app-meta", (c) => {
+    lastPanelSeenAt = Date.now();
     c.header("Cache-Control", "no-store");
     return c.json({ serviceInstanceId });
   });
@@ -4729,6 +4732,7 @@ export function createApp(
     }
   });
 
+  appPanelPresence.set(app, () => Date.now() - lastPanelSeenAt < 5_000);
   return app;
 }
 
@@ -4737,6 +4741,8 @@ export interface RunningServer {
   port: number;
   /** Vendor CLI availability captured before the HTTP service started. */
   vendors: VendorAvailability[];
+  /** Whether an already-open dashboard has reconnected to this process. */
+  hasConnectedPanel: () => boolean;
   /** Stop the HTTP service and terminate its in-flight chat runs. */
   close: () => void;
 }
@@ -4784,6 +4790,7 @@ export function startServer(
   const appDeps = deps ?? createDefaultAppDeps(config);
   const app = createApp(config, appDeps);
   const scheduleRuntime = appScheduleRuntimes.get(app);
+  const hasConnectedPanel = appPanelPresence.get(app) ?? (() => false);
   const listen = (port: number, attemptsLeft: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {
       const server = serve({ fetch: app.fetch, hostname: config.host, port }, () => {
@@ -4818,6 +4825,7 @@ export function startServer(
               available: true,
               chat: true,
             })),
+          hasConnectedPanel,
           close,
         });
       });

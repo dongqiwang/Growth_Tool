@@ -1961,8 +1961,8 @@ export function renderConsole(v: ConsoleView): string {
           <input id="tagSearch" class="searchbox" placeholder="Search tags…" autocomplete="off" aria-label="search tags and sessions in this view">
           <button id="tagSearchClear" class="search-clear" type="button" aria-label="clear tag search" hidden>×</button>
         </div>
-        <button id="tagModeToggle" class="tagmode-toggle instant-tip instant-tip-left" type="button" aria-pressed="false" data-tooltip="Show sessions matching any selected tag. Click to require all selected tags.">sessions with <span id="tagModeValue">any</span> <span id="tagModeNoun">tag</span></button>
-        <button id="tagOrderToggle" class="tagmode-toggle tagorder-toggle instant-tip instant-tip-left" type="button" aria-pressed="false" data-tooltip="Custom tags use your fixed drag-and-drop order. Click to sort them by their latest user message.">order: <span id="tagOrderValue">fixed</span></button>
+        <button id="tagModeToggle" class="tagmode-toggle instant-tip instant-tip-left" type="button" aria-pressed="false" data-tooltip="Show sessions matching any selected tag. Click to require all selected tags."><span id="tagModePrefix">sessions with</span> <span id="tagModeValue">any</span> <span id="tagModeNoun">tag</span></button>
+        <button id="tagOrderToggle" class="tagmode-toggle tagorder-toggle instant-tip instant-tip-left" type="button" aria-pressed="false" data-tooltip="Custom tags use your fixed drag-and-drop order. Click to sort them by their latest user message."><span id="tagOrderPrefix">order:</span> <span id="tagOrderValue">fixed</span></button>
       </div>
       <button id="bulkArchiveSeen" class="bulkarchive instant-tip instant-tip-right" type="button" disabled data-tooltip="No seen sessions matching the current view and focus filters to archive">archive 0 seen sessions</button>
     </div>
@@ -2475,6 +2475,9 @@ window.__CHANGELOG__ = ${changelogJson};
   var SESSION_VISIBILITY_FILTER_KEY = 'attend.sessionVisibilityFilter.v1';
   var UI_LANGUAGE_KEY = 'attend.uiLanguage.v1';
   var PRIORITY_FILTER_KEY = 'attend.priorityFilter.v1';
+  var CURRENT_SESSION_KEY = 'attend.currentSession.v1';
+  var SESSION_DRAFTS_KEY = 'attend.sessionDrafts.v1';
+  var SESSION_SCROLL_STATES_KEY = 'attend.sessionScrollStates.v1';
   function loadTagFilterMode(){
     try{ return localStorage.getItem(TAG_FILTER_MODE_KEY)==='and' ? 'and' : 'or'; }
     catch(e){ return 'or'; }
@@ -2510,6 +2513,37 @@ window.__CHANGELOG__ = ${changelogJson};
   function saveUiLanguage(){
     try{ localStorage.setItem(UI_LANGUAGE_KEY,uiLanguage); }catch(e){}
   }
+  var syncScopedLanguageUi=function(){};
+  function loadLocalRecord(key,maxLength){
+    try{
+      var parsed=JSON.parse(localStorage.getItem(key)||'{}'),out={};
+      if(!parsed || typeof parsed!=='object' || Array.isArray(parsed)) return out;
+      Object.keys(parsed).slice(-50).forEach(function(id){
+        var value=parsed[id];
+        if(maxLength){ if(typeof value==='string'&&value) out[id]=value.slice(0,maxLength); }
+        else if(value&&typeof value==='object'&&!Array.isArray(value)) out[id]=value;
+      });
+      return out;
+    }catch(e){ return {}; }
+  }
+  function saveLocalRecord(key,value){
+    try{
+      var compact={},ids=Object.keys(value||{}).slice(-50);
+      ids.forEach(function(id){ compact[id]=value[id]; });
+      if(ids.length) localStorage.setItem(key,JSON.stringify(compact));
+      else localStorage.removeItem(key);
+    }catch(e){}
+  }
+  function rememberCurrentSession(s){
+    try{
+      var id=String(providerSessionId(s)||(s&&s.sessionId)||'');
+      if(id) localStorage.setItem(CURRENT_SESSION_KEY,id);
+    }catch(e){}
+  }
+  function restoreCurrentSession(){
+    try{ return findSessionById(localStorage.getItem(CURRENT_SESSION_KEY)||''); }
+    catch(e){ return null; }
+  }
   var UI_COPY={
     zh:{
       searchSessions:'搜索会话…',newSession:'+ 新建',newSessionTitle:'新建会话',tags:'标签',searchTags:'搜索标签…',
@@ -2517,7 +2551,24 @@ window.__CHANGELOG__ = ${changelogJson};
       hideSession:'隐藏会话',showSession:'恢复显示',noHiddenSessions:'暂无隐藏会话',noVisibleSessions:'暂无未隐藏会话',noSessions:'暂无会话',noMatches:'没有匹配结果',
       openTodos:'打开待办',todos:'待办',switchDark:'切换到深色主题',switchLight:'切换到浅色主题',openChats:'打开会话面板',closeChats:'关闭会话面板',
       archiveEmpty:'当前筛选中没有可归档的已读会话',switchLanguage:'Switch to English',archivePrefix:'归档 ',archiveSuffix:' 个已读会话',
-      serviceUnavailable:'Attend 正在重启，请稍候…',serviceRestored:'Attend 服务已恢复。',upgradeReady:'新版本已就绪，正在刷新…'
+      serviceUnavailable:'Attend 正在重启，请稍候…',serviceRestored:'Attend 服务已恢复。',upgradeReady:'新版本已就绪，正在刷新…',
+      today:'今天',yesterday:'昨天',last7Days:'最近 7 天',last30Days:'最近 30 天',allTime:'全部时间',customRange:'自定义范围…',searchTimeRange:'搜索时间范围',
+      vendor:'服务商',model:'模型',effort:'推理强度',speed:'速度',projectDir:'项目目录',pickVendor:'选择服务商',pickProjectDir:'选择项目目录，或输入仓库相对/绝对路径',
+      firstMessage:'首条消息（可选 · Enter 开始 · Shift+Enter 换行 · 可拖入文件或图片）',attachFiles:'添加文件',useFirstGoal:'将首条消息设为目标',useNextGoal:'将下一条消息设为目标',goal:'目标',
+      addTag:'+ 标签',pickTag:'选择或新建标签',startSession:'开始会话 ▸',closeNewSession:'关闭新建会话表单',addTodo:'添加待办…',add:'添加',closeTodos:'关闭待办',
+      sessionsWith:'匹配',any:'任一',every:'全部',tag:'标签',order:'排序：',fixed:'固定',recent:'最近',
+      backSessions:'返回会话列表',editTitle:'编辑标题',viewForkTree:'查看分支树',refreshChat:'从记录刷新当前会话',selectSessionPin:'选择要置顶的会话',pinSession:'置顶会话',unpinSession:'取消置顶',
+      recentChanges:'最近更新',whatsNew:'更新内容',changelogHint:'从左侧选择会话，或点击“+ 新建”开始。',changelog:'更新日志',
+      message:'消息',messageHint:'消息（Enter 发送 · Shift+Enter 换行 · 可拖入/粘贴文件或图片）',generatingQueue:'生成中… Enter 将消息加入队列',send:'发送',fork:'分支',stop:'停止',refreshingChat:'正在刷新会话…',
+      shortcuts:'快捷语',notes:'笔记',todo:'待办',composerControls:'编辑器控制',referencePin:'引用置顶内容',scrollBottom:'滚动到底部',
+      commentThread:'评论线程',promoteSession:'转为普通会话',closeComments:'关闭评论',addPrompt:'加入提示词',addComment:'加入评论',optionalVerify:'可选：证明、质疑或验证',optionalEnter:'可选 · Enter 添加',
+      forkTree:'分支树',zoomOut:'缩小',zoomIn:'放大',fitForkTree:'适应分支树',closeForkTree:'关闭分支树',
+      workPatterns:'工作模式',workPatternsSub:'会话广度、连续性与当前资源压力',closeWorkStats:'关闭工作统计',deleteTag:'删除标签',editSessionTags:'编辑会话标签',
+      scheduleOnce:'单次计划',scheduledDateTime:'计划日期和时间',openCalendar:'打开日历和时间选项',previousMonth:'上个月',nextMonth:'下个月',time:'时间',hour:'小时',minute:'分钟',
+      unlockAttend:'解锁 Attend',unlockHint:'输入启动本地服务时使用的同一密码。',passphrase:'密码',unlock:'解锁',
+      now:'现在',generating:'生成中',newReply:'新回复',inProgress:'进行中',read:'已读',
+      continueReady:'可继续',needsDecision:'待决策',needsInput:'待输入',blocked:'受阻',needsReview:'待检查',followupSuggested:'建议后续',done:'已完成',
+      first:'首条',latest:'最新',draft:'草稿',current:'当前',untagged:'未标记',priorityFilter:'按优先级筛选会话'
     }
   };
   function uiText(key,fallback){
@@ -2526,16 +2577,36 @@ window.__CHANGELOG__ = ${changelogJson};
   }
   function syncUiLanguageStatic(){
     document.documentElement.lang=uiLanguage==='zh'?'zh-CN':'en';
+    function textAt(id,key,fallback){ var node=byId(id); if(node) node.textContent=uiText(key,fallback); }
+    function placeholderAt(id,key,fallback){ var node=byId(id); if(node) node.placeholder=uiText(key,fallback); }
+    function labelAt(id,key,fallback){ var node=byId(id); if(node){ var label=uiText(key,fallback); node.title=label; node.setAttribute('aria-label',label); } }
     var languageButton=byId('languageToggle');
     if(languageButton){ languageButton.textContent=uiLanguage==='zh'?'EN':'中'; languageButton.title=uiText('switchLanguage','切换到中文'); languageButton.setAttribute('aria-label',languageButton.title); }
-    var search=byId('search'); if(search) search.placeholder=uiText('searchSessions','Search sessions…');
-    var newToggle=byId('newToggle'); if(newToggle) newToggle.textContent=uiText('newSession','+ new');
-    var newTitle=byId('newSessionTitle'); if(newTitle) newTitle.textContent=uiText('newSessionTitle','New session');
-    var tagTitle=byId('tagTitle'); if(tagTitle) tagTitle.textContent=uiText('tags','tags');
+    placeholderAt('search','searchSessions','Search sessions…'); textAt('newToggle','newSession','+ new'); textAt('newSessionTitle','newSessionTitle','New session'); textAt('tagTitle','tags','tags');
     var tagSearch=byId('tagSearch'); if(tagSearch){ tagSearch.placeholder=uiText('searchTags','Search tags…'); tagSearch.setAttribute('aria-label',uiText('searchTags','search tags and sessions in this view')); }
     var visibility=byId('sessionVisibilityFilter'); if(visibility) visibility.setAttribute('aria-label',uiText('visibilityFilter','Filter sessions by visibility'));
     var todoToggle=byId('todoHubToggle'); if(todoToggle) todoToggle.setAttribute('aria-label',uiText('openTodos','open todos'));
-    var todoTitle=byId('todoHubTitle'); if(todoTitle) todoTitle.textContent=uiText('todos','Todos');
+    textAt('todoHubTitle','todos','Todos'); placeholderAt('todoHubAddInput','addTodo','Add a todo…'); textAt('todoHubAddButton','add','add'); labelAt('todoHubClose','closeTodos','close todos');
+    labelAt('newClose','closeNewSession','close new session form'); placeholderAt('nvendor','pickVendor','pick a vendor'); placeholderAt('ndir','pickProjectDir','pick a project dir, or type a vault-relative / absolute path'); placeholderAt('np','firstMessage','first message (optional · Enter to start · Shift+Enter for newline · drag files/images here)');
+    labelAt('nattach','attachFiles','Attach files'); labelAt('attach','attachFiles','Attach files'); textAt('newTagAdd','addTag','+ tag'); placeholderAt('newTagInput','pickTag','pick or create a tag'); textAt('nbtn','startSession','start session ▸');
+    var newLabels=document.querySelectorAll('#newbox .picklbl'); ['vendor','model','effort','speed','projectDir'].forEach(function(key,index){ if(newLabels[index]) newLabels[index].textContent=uiText(key,['vendor','model','effort','speed','project dir'][index]); });
+    [['newGoalToggle','useFirstGoal'],['goalToggle','useNextGoal']].forEach(function(entry){ var button=byId(entry[0]); if(!button) return; button.title=uiText(entry[1],entry[0]==='newGoalToggle'?'Use the first message as a Goal':'Use the next message as a Goal'); var value=button.querySelector('span'); if(value) value.textContent=uiText('goal','goal'); });
+    labelAt('backbtn','backSessions','back to sessions'); labelAt('titleEditBtn','editTitle','edit title'); labelAt('forkTreeBtn','viewForkTree','view fork tree'); labelAt('refreshBtn','refreshChat','refresh this chat from transcript');
+    var sub=byId('h-sub'); if(sub&&!cur) sub.textContent=uiText('recentChanges','Recent changes');
+    var ph=byId('ph'); if(ph&&ph.classList.contains('changelog')){ var kicker=ph.querySelector('.changelog-kicker'),hint=ph.querySelector('.changelog-hint'); if(kicker) kicker.textContent=uiText('whatsNew',"What's new"); if(hint) hint.textContent=uiText('changelogHint','Select a session on the left to open its chat, or choose + new to start one.'); ph.setAttribute('aria-label',uiText('changelog','Changelog')); }
+    if(noSessionChangelog){ var savedKicker=noSessionChangelog.querySelector('.changelog-kicker'),savedHint=noSessionChangelog.querySelector('.changelog-hint'); if(savedKicker) savedKicker.textContent=uiText('whatsNew',"What's new"); if(savedHint) savedHint.textContent=uiText('changelogHint','Select a session on the left to open its chat, or choose + new to start one.'); noSessionChangelog.setAttribute('aria-label',uiText('changelog','Changelog')); }
+    placeholderAt('input','messageHint','message (Enter to send · Shift+Enter for newline · drag/paste files/images here)'); textAt('send','send','send'); labelAt('chatScrollBottom','scrollBottom','Scroll to bottom');
+    [['railShortcuts','shortcuts','shortcuts'],['railNotes','notes','notes'],['railTodos','todo','todo']].forEach(function(entry){ var node=byId(entry[0]),value=node&&node.querySelector('.railbtn-value'); if(value) value.textContent=uiText(entry[1],entry[2]); });
+    var composerRail=byId('composerRailPop'); if(composerRail) composerRail.setAttribute('aria-label',uiText('composerControls','Composer controls')); var pinPicker=byId('composerPinPicker'); if(pinPicker) pinPicker.setAttribute('aria-label',uiText('referencePin','Reference a Pin'));
+    textAt('commentTitle','commentThread','Comment thread'); textAt('commentPromote','promoteSession','promote to session'); labelAt('commentClose','closeComments','close comments'); placeholderAt('commentInput','message','message'); textAt('commentSend','send','send'); labelAt('commentScrollBottom','scrollBottom','Scroll to bottom');
+    [['msgReferenceInput','msgReferenceAdd','addPrompt'],['commentMsgReferenceInput','commentMsgReferenceAdd','addComment']].forEach(function(entry){ placeholderAt(entry[0],'optionalVerify','Optional: prove, challenge, or verify'); textAt(entry[1],entry[2],entry[2]==='addPrompt'?'add to prompt':'add to comment'); });
+    document.querySelectorAll('.msg-reference-hint').forEach(function(node){ node.textContent=uiText('optionalEnter','Optional · Enter to add'); });
+    textAt('forkTreeTitle','forkTree','Fork tree'); labelAt('forkTreeZoomOut','zoomOut','zoom out'); labelAt('forkTreeReset','fitForkTree','fit fork tree'); labelAt('forkTreeZoomIn','zoomIn','zoom in'); labelAt('forkTreeClose','closeForkTree','close fork tree');
+    textAt('workStatsTitle','workPatterns','Work patterns'); var workSub=document.querySelector('.workstats-sub'); if(workSub) workSub.textContent=uiText('workPatternsSub','Session breadth, continuity, and current resource pressure'); labelAt('workStatsClose','closeWorkStats','close work statistics'); textAt('tagActionDelete','deleteTag','Delete tag');
+    var sessionTag=byId('sessionTagPopover'); if(sessionTag) sessionTag.setAttribute('aria-label',uiText('editSessionTags','Edit session tags')); placeholderAt('sessionTagInput','pickTag','pick or create a tag');
+    var schedule=byId('schedulePop'); if(schedule) schedule.setAttribute('aria-label',uiText('scheduleOnce','Schedule once')); var scheduleTitle=document.querySelector('.schedulepop-title'); if(scheduleTitle) scheduleTitle.textContent=uiText('scheduleOnce','Schedule once');
+    placeholderAt('unlockPass','passphrase','passphrase'); textAt('unlockBtn','unlock','unlock'); var unlockTitle=document.querySelector('.unlock-title'),unlockSub=document.querySelector('.unlock-sub'); if(unlockTitle) unlockTitle.textContent=uiText('unlockAttend','Unlock Attend'); if(unlockSub) unlockSub.textContent=uiText('unlockHint','Enter the same passphrase used to start the local server.');
+    syncScopedLanguageUi(); syncTagFilterModeToggle(); syncTagOrderToggle(); syncHeaderPinButton();
     setTheme(currentTheme(),false);
     syncSessionPanelButton();
   }
@@ -2545,7 +2616,7 @@ window.__CHANGELOG__ = ${changelogJson};
     syncUiLanguageStatic();
     renderTagFilters();
     renderSidebar();
-    if(sessionSearchRangeOpen) renderSessionSearchRangeMenu();
+    if(cur){ syncOpenHeader(); renderComposerRail(); updateSendLabel(); }
   }
   function toggleUiLanguage(){ setUiLanguage(uiLanguage==='zh'?'en':'zh'); }
   function loadPinnedTags(){
@@ -2751,10 +2822,10 @@ window.__CHANGELOG__ = ${changelogJson};
   var editingQueueIdx = -1; // which queued draft is open in its inline editor (-1 = none)
   var editingScheduleId = ''; // scheduled queue row whose text is being edited
   var stopRequested = false;
-  var sessionDrafts = {};
+  var sessionDrafts = loadLocalRecord(SESSION_DRAFTS_KEY,100000);
   var sessionAttachments = {};
   var sessionPinReferences = {};
-  var sessionScrollStates = {};
+  var sessionScrollStates = loadLocalRecord(SESSION_SCROLL_STATES_KEY,0);
   // Readline-style cursor: entries[0..N-1] are user turns; N is the saved draft.
   var composerHistoryNav = null;
   var sessionQueueEditing = {};
@@ -4341,7 +4412,7 @@ window.__CHANGELOG__ = ${changelogJson};
   }
   var UNTAGGED_TAG_KEY='system:untagged';
   function untaggedTagDef(){
-    return { key:UNTAGGED_TAG_KEY, kind:'untagged', label:'untagged', value:'untagged', title:'sessions with no custom tags', deletable:false };
+    return { key:UNTAGGED_TAG_KEY, kind:'untagged', label:uiText('untagged','untagged'), value:'untagged', title:'sessions with no custom tags', deletable:false };
   }
   function sessionIsUntagged(s){
     return !!s && !(s.tags||[]).some(function(tag){ return !!normalizeTag(tag); });
@@ -4684,8 +4755,9 @@ window.__CHANGELOG__ = ${changelogJson};
   function syncTagFilterModeToggle(){
     var btn=byId('tagModeToggle'); if(!btn) return;
     var isAnd=tagFilterMode==='and';
-    var value=byId('tagModeValue'); if(value) value.textContent=isAnd ? 'all' : 'any';
-    var noun=byId('tagModeNoun'); if(noun) noun.textContent=isAnd ? 'tags' : 'tag';
+    var prefix=byId('tagModePrefix'); if(prefix) prefix.textContent=uiText('sessionsWith','sessions with');
+    var value=byId('tagModeValue'); if(value) value.textContent=isAnd ? uiText('every','all') : uiText('any','any');
+    var noun=byId('tagModeNoun'); if(noun) noun.textContent=uiText('tag',isAnd ? 'tags' : 'tag');
     btn.setAttribute('aria-pressed', isAnd ? 'true' : 'false');
     var tip=isAnd
       ? 'Show sessions matching all selected tags. Click to match any selected tag.'
@@ -4707,7 +4779,8 @@ window.__CHANGELOG__ = ${changelogJson};
   function syncTagOrderToggle(){
     var btn=byId('tagOrderToggle'); if(!btn) return;
     var recent=tagOrderMode==='recent';
-    var value=byId('tagOrderValue'); if(value) value.textContent=recent ? 'recent' : 'fixed';
+    var prefix=byId('tagOrderPrefix'); if(prefix) prefix.textContent=uiText('order','order:');
+    var value=byId('tagOrderValue'); if(value) value.textContent=recent ? uiText('recent','recent') : uiText('fixed','fixed');
     btn.setAttribute('aria-pressed',recent ? 'true' : 'false');
     btn.setAttribute('aria-label',recent ? 'Unpinned custom tags sorted by latest user message. Click for fixed order.' : 'Unpinned custom tags use fixed drag-and-drop order. Click for recent order.');
     btn.setAttribute('data-tooltip',recent
@@ -4750,6 +4823,7 @@ window.__CHANGELOG__ = ${changelogJson};
   }
   function focusViewLabel(view){
     var prefix=(view&&view.name)||'Focus';
+    if(uiLanguage==='zh' && /^Focus(?:\s+\d+)?$/i.test(prefix)) prefix=prefix.replace(/^Focus/i,uiText('focus','Focus'));
     var current=view && view.id===activeFocusId;
     var tags=current ? activeTags : ((view&&view.tags)||[]);
     var labels=tagLabels(tags);
@@ -8220,7 +8294,15 @@ window.__CHANGELOG__ = ${changelogJson};
     scheduleOverlayOffsets();
   }
   function stateLabel(state){
-    return STATE_OPTIONS.indexOf(state)>=0 ? state : '';
+    return ({
+      continue_ready:uiText('continueReady','continue_ready'),
+      needs_decision:uiText('needsDecision','needs_decision'),
+      needs_input:uiText('needsInput','needs_input'),
+      blocked:uiText('blocked','blocked'),
+      needs_review:uiText('needsReview','needs_review'),
+      followup_suggested:uiText('followupSuggested','followup_suggested'),
+      done:uiText('done','done')
+    })[state] || '';
   }
   function stateTitle(state){
     return ({
@@ -8647,6 +8729,7 @@ window.__CHANGELOG__ = ${changelogJson};
     migrateSessionGoal(previous,String(providerId));
     var chatGroup=chatGroupForSession(s); if(chatGroup) persistChatGroups([chatGroup]);
     if(cur===s){
+      rememberCurrentSession(s);
       renderComposerRail();
       refreshGoalToggle();
     }
@@ -11259,8 +11342,8 @@ window.__CHANGELOG__ = ${changelogJson};
   // blocked — so this only swaps the placeholder hint. An async turn ending
   // must never steal focus from New Session, search, tag editing, or another field.
   function setInputEnabled(on){ var i=byId('input'); if(!i) return; i.disabled=false;
-    i.placeholder = on ? (goalArmed?'describe a verifiable completion condition…':'message')
-                       : 'Generating… Enter queues your message'; }
+    i.placeholder = on ? (goalArmed?'describe a verifiable completion condition…':uiText('message','message'))
+                       : uiText('generatingQueue','Generating… Enter queues your message'); }
   function draftKey(s){ return s && s.sessionId ? String(s.sessionId) : ''; }
   function sessionScrollKey(s){
     if(!s) return '';
@@ -11309,6 +11392,7 @@ window.__CHANGELOG__ = ${changelogJson};
       atBottom:nearScrollBottom(host),
       unreadRatio:currentTurnUnreadRatio(host)
     };
+    saveLocalRecord(SESSION_SCROLL_STATES_KEY,sessionScrollStates);
     syncSessionReadProgress(s);
   }
   function savedSessionScrollState(s){
@@ -11326,8 +11410,9 @@ window.__CHANGELOG__ = ${changelogJson};
     var key=draftKey(s);
     if(!key) return;
     var val=String(text||'');
-    if(val) sessionDrafts[key]=val;
+    if(val){ delete sessionDrafts[key]; sessionDrafts[key]=val; }
     else delete sessionDrafts[key];
+    saveLocalRecord(SESSION_DRAFTS_KEY,sessionDrafts);
   }
   function draftTextForSession(s){
     var key=draftKey(s);
@@ -11357,7 +11442,7 @@ window.__CHANGELOG__ = ${changelogJson};
         },0);
       };
     }
-    var line=sessionPromptLine(cls||'it-firstline',draft?'Draft':'Latest',latest,edit,draft?'Draft':promptAgeLabel(s,'latest'));
+    var line=sessionPromptLine(cls||'it-firstline',draft?uiText('draft','Draft'):uiText('latest','Latest'),latest,edit,draft?uiText('draft','Draft'):promptAgeLabel(s,'latest'));
     host.appendChild(line);
     return line;
   }
@@ -11365,6 +11450,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var key=draftKey(s);
     if(!key) return;
     delete sessionDrafts[key];
+    saveLocalRecord(SESSION_DRAFTS_KEY,sessionDrafts);
     delete sessionAttachments[key];
     delete sessionPinReferences[key];
   }
@@ -11624,16 +11710,16 @@ window.__CHANGELOG__ = ${changelogJson};
   function updateSendLabel(){ var b=byId('send'),forkButton=byId('forkBtn'); if(!b) return;
     var changed=composerVendorChanged(),vendor=(currentForkDefaults()).vendor||'selected vendor';
     if(turnActive){
-      b.textContent='■ stop'; b.disabled=false; b.title='Stop the current generation (Esc)';
-      if(forkButton){ forkButton.hidden=false; setForkButtonLabel(forkButton,changed?'fork with '+vendor:'fork'); }
+      b.textContent='■ '+uiText('stop','stop'); b.disabled=false; b.title='Stop the current generation (Esc)';
+      if(forkButton){ forkButton.hidden=false; setForkButtonLabel(forkButton,changed?'fork with '+vendor:uiText('fork','fork')); }
     } else if(changed){
       setForkButtonLabel(b,'fork with '+vendor); b.disabled=!canForkCur(); b.title='Create a '+vendor+' branch with this draft';
       if(forkButton) forkButton.hidden=true;
     } else {
       var currentInfo=vendorInfo(cur&&cur.vendor);
       var unavailable=!!(currentInfo&&!currentInfo.available);
-      b.textContent='send'; b.disabled=unavailable; b.title=unavailable ? (currentInfo.message||currentInfo.vendor+' CLI is unavailable.') : '';
-      if(forkButton){ forkButton.hidden=false; setForkButtonLabel(forkButton,'fork'); }
+      b.textContent=uiText('send','send'); b.disabled=unavailable; b.title=unavailable ? (currentInfo.message||currentInfo.vendor+' CLI is unavailable.') : '';
+      if(forkButton){ forkButton.hidden=false; setForkButtonLabel(forkButton,uiText('fork','fork')); }
     }
     b.classList.toggle('stopping', turnActive); }
   function beginTurn(startedAt){
@@ -12172,7 +12258,7 @@ window.__CHANGELOG__ = ${changelogJson};
       copy.appendChild(heading);
       copy.appendChild(el('span','headtag-session-meta',[s.vendor,s.project||basename(s.cwd||''),ageLabel(s)].filter(Boolean).join(' · ')));
       option.appendChild(copy);
-      if(active) option.appendChild(el('span','headtag-session-current','current'));
+      if(active) option.appendChild(el('span','headtag-session-current',uiText('current','current')));
       option.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); closeHeaderTagSessionMenu(); if(!active) select(s); };
       menu.appendChild(option);
     });
@@ -12203,7 +12289,7 @@ window.__CHANGELOG__ = ${changelogJson};
       tags.appendChild(chip);
     });
     if(s.sessionId){
-      var add=el('button','it-tagadd','+ tag');
+      var add=el('button','it-tagadd',uiText('addTag','+ tag'));
       add.type='button';
       add.setAttribute('aria-haspopup','dialog'); add.setAttribute('aria-expanded','false'); add.setAttribute('aria-controls','sessionTagPopover');
       add.onclick=function(ev){
@@ -12300,7 +12386,7 @@ window.__CHANGELOG__ = ${changelogJson};
     if(!titleEditing) renderSessionTitle(byId('h-title'), cur, 't it-title');
     syncHeaderStatus(cur);
     var sub=byId('h-sub'); sub.innerHTML=''; sub.className='s';
-    if(cur.title) sub.appendChild(enableHeaderPromptJump(sessionPromptLine('sub-line it-firstline','First',cur.title,null,promptAgeLabel(cur,'first')),'first'));
+    if(cur.title) sub.appendChild(enableHeaderPromptJump(sessionPromptLine('sub-line it-firstline',uiText('first','First'),cur.title,null,promptAgeLabel(cur,'first')),'first'));
     var latestLine=appendLatestPrompt(sub, cur, 'sub-line it-firstline');
     if(latestLine&&latestLine.querySelector('.prompt-line-latest')) enableHeaderPromptJump(latestLine,'latest');
     if(!sub.childNodes.length) sub.appendChild(el('div','sub-line', cur.vendor+' · '+(cur.cwd||'')));
@@ -12319,7 +12405,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var enabled = !!(cur && (cur.sessionId || cur.pendingFork));
     rb.disabled = !enabled || refreshBusy;
     rb.classList.toggle('busy', !!refreshBusy);
-    rb.title = refreshBusy ? 'refreshing chat…' : 'refresh this chat from transcript';
+    rb.title = refreshBusy ? uiText('refreshingChat','refreshing chat…') : uiText('refreshChat','refresh this chat from transcript');
   }
   function setRefreshBusy(on){
     refreshBusy = !!on;
@@ -12329,7 +12415,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var button=byId('headerPinBtn');
     if(!button) return;
     var enabled=!!(cur&&cur.sessionId&&!cur.pendingFork),pinned=enabled&&!!sessionPinTime(cur);
-    var label=enabled?(pinned?'Unpin session':'Pin session to top'):'select a session to pin';
+    var label=enabled?(pinned?uiText('unpinSession','Unpin session'):uiText('pinSession','Pin session to top')):uiText('selectSessionPin','select a session to pin');
     button.disabled=!enabled;
     button.classList.toggle('on',pinned);
     button.title=label;
@@ -12354,7 +12440,7 @@ window.__CHANGELOG__ = ${changelogJson};
     syncPageTitle(null);
     var ht=byId('h-title'); if(ht){ ht.className='t it-title'; ht.textContent = 'Attend'; ht.removeAttribute('data-hover-tip'); }
     var sub=byId('h-sub');
-    if(sub){ sub.className='s'; sub.textContent='Recent changes'; }
+    if(sub){ sub.className='s'; sub.textContent=uiText('recentChanges','Recent changes'); }
     var sig=byId('h-sig'); if(sig) sig.innerHTML='';
     var age=byId('h-age'); if(age){ age.textContent=''; age.hidden=true; }
     var tags=byId('h-tags'); if(tags) tags.innerHTML='';
@@ -12555,12 +12641,12 @@ window.__CHANGELOG__ = ${changelogJson};
   var sessionSearchCustomPickerTarget='';
   var sessionSearchCustomPickerMonth=sessionSearchDayStart(0);
   var SESSION_SEARCH_RANGES=[
-    {value:'today',label:'Today',compact:'Today'},
-    {value:'yesterday',label:'Yesterday',compact:'Yesterday'},
-    {value:'7d',label:'Last 7 days',compact:'7 days'},
-    {value:'30d',label:'Last 30 days',compact:'30 days'},
-    {value:'all',label:'All time',compact:'All'},
-    {value:'custom',label:'Custom range…',compact:'Custom'}
+    {value:'today',key:'today',label:'Today',compact:'Today'},
+    {value:'yesterday',key:'yesterday',label:'Yesterday',compact:'Yesterday'},
+    {value:'7d',key:'last7Days',label:'Last 7 days',compact:'7 days'},
+    {value:'30d',key:'last30Days',label:'Last 30 days',compact:'30 days'},
+    {value:'all',key:'allTime',label:'All time',compact:'All'},
+    {value:'custom',key:'customRange',label:'Custom range…',compact:'Custom'}
   ];
   var tagSearchQ=''; // tag-chip search; also narrows sessions inside the current view
   var contentSearchQ='';
@@ -12726,7 +12812,7 @@ window.__CHANGELOG__ = ${changelogJson};
     if(t==null) return fallbackDays!=null?(fallbackDays+'d'):'';
     var ms=Date.now()-t; if(ms<0) ms=0;
     var m=Math.floor(ms/60000);
-    if(m<1) return 'now';
+    if(m<1) return uiText('now','now');
     if(m<60) return m+'m';
     var h=Math.floor(m/60);
     if(h<24) return h+'h';
@@ -12968,7 +13054,7 @@ window.__CHANGELOG__ = ${changelogJson};
         renderSessionSignals(signals,session);
         if(signals.childNodes.length) content.appendChild(signals);
         var promptTail=null;
-        if(session.title){ promptTail=sessionPromptLine('it-firstline','First',session.title,null,promptAgeLabel(session,'first')); content.appendChild(promptTail); }
+        if(session.title){ promptTail=sessionPromptLine('it-firstline',uiText('first','First'),session.title,null,promptAgeLabel(session,'first')); content.appendChild(promptTail); }
         promptTail=appendLatestPrompt(content, session, 'it-firstline')||promptTail;
         var queueBadge=el('span','it-queue');
         if(promptTail){ promptTail.classList.add('with-tail'); promptTail.appendChild(queueBadge); }
@@ -13151,10 +13237,10 @@ window.__CHANGELOG__ = ${changelogJson};
     return attentionState(s);
   }
   function statusLabel(st){
-    return st==='generating' ? 'generating'
-      : st==='unread' ? 'new reply'
-      : st==='seen' ? 'in progress'
-      : 'read';
+    return st==='generating' ? uiText('generating','generating')
+      : st==='unread' ? uiText('newReply','new reply')
+      : st==='seen' ? uiText('inProgress','in progress')
+      : uiText('read','read');
   }
   function sidebarStatusTitle(st){
     var base = statusLabel(st);
@@ -13860,7 +13946,7 @@ window.__CHANGELOG__ = ${changelogJson};
       if(meta.childNodes.length) item.appendChild(meta);
       // two subtitles: my first message, then my latest message
       var promptTail=null;
-      if(s.title){ promptTail=sessionPromptLine('it-firstline','First',s.title,null,promptAgeLabel(s,'first')); item.appendChild(promptTail); }
+      if(s.title){ promptTail=sessionPromptLine('it-firstline',uiText('first','First'),s.title,null,promptAgeLabel(s,'first')); item.appendChild(promptTail); }
       promptTail=appendLatestPrompt(item, s, 'it-firstline')||promptTail;
       if(s.sessionId){
         var workBadges=el('span','it-workbadges');
@@ -14841,7 +14927,7 @@ window.__CHANGELOG__ = ${changelogJson};
     var restoreReadingPosition=!s.generating&&!restoreBottom&&savedScrollTop!=null;
     var selectionScrollMode=restoreReadingPosition ? {top:savedScrollTop} : null;
     closeSessionTagPopover();
-    cur=s; activateChatGroupForSession(s); goalArmed=false; editingScheduleId='';
+    cur=s; rememberCurrentSession(s); activateChatGroupForSession(s); goalArmed=false; editingScheduleId='';
     clearGen(); turnActive=false; msgOrdinal=0; toolOrdinal=0; setInputEnabled(true); updateSendLabel();
     refreshGoalToggle();
     markSeen(s); syncSessionListsAfterSelection(previousSelection,s);
@@ -15066,12 +15152,12 @@ window.__CHANGELOG__ = ${changelogJson};
   function markLiveConnectionFailed(){
     if(liveConnectionFailed) return;
     liveConnectionFailed=true;
-    liveErrorToast=showToast('Attend is unavailable.', 'error', true);
+    liveErrorToast=showToast(uiText('serviceUnavailable','Attend is unavailable.'), 'error', true);
   }
   function markLiveRestored(){
     if(liveErrorToast && liveErrorToast.parentNode) liveErrorToast.parentNode.removeChild(liveErrorToast);
     liveErrorToast=null;
-    if(liveConnectionFailed) showToast('Attend service connection restored.', 'live-restored');
+    if(liveConnectionFailed) showToast(uiText('serviceRestored','Attend service connection restored.'), 'live-restored');
     liveConnectionFailed=false;
   }
   var serviceMetaTimer=0;
@@ -16309,12 +16395,12 @@ window.__CHANGELOG__ = ${changelogJson};
   function syncSessionSearchRangeControl(){
     var button=byId('searchRangeButton'),text=byId('searchRangeText'); if(!button||!text) return;
     var def=sessionSearchRangeDef();
-    text.textContent=sessionSearchRange==='custom'?sessionSearchCustomCompactLabel():def.compact;
+    text.textContent=sessionSearchRange==='custom'?sessionSearchCustomCompactLabel():uiText(def.key,def.compact);
     button.classList.toggle('active',!!filterQ);
     button.setAttribute('aria-expanded',sessionSearchRangeOpen?'true':'false');
-    var rangeLabel=def.label;
+    var rangeLabel=uiText(def.key,def.label);
     if(sessionSearchRange==='custom') rangeLabel=new Date(sessionSearchCustomStart).toLocaleString()+' – '+new Date(sessionSearchCustomEnd).toLocaleString();
-    button.setAttribute('aria-label','Search time range: '+rangeLabel+(filterQ?'':' · applies when searching'));
+    button.setAttribute('aria-label',uiText('searchTimeRange','Search time range')+': '+rangeLabel+(filterQ?'':' · applies when searching'));
   }
   function renderSessionSearchCustomRange(menu){
     menu.classList.add('custom');
@@ -16416,19 +16502,24 @@ window.__CHANGELOG__ = ${changelogJson};
       menu.hidden=!sessionSearchRangeOpen;
       return;
     }
-    menu.setAttribute('role','listbox'); menu.setAttribute('aria-label','Search time range');
+    menu.setAttribute('role','listbox'); menu.setAttribute('aria-label',uiText('searchTimeRange','Search time range'));
     SESSION_SEARCH_RANGES.forEach(function(def){
       var selected=def.value===sessionSearchRange;
       var option=el('button','search-range-option'); option.type='button';
       option.setAttribute('role','option'); option.setAttribute('aria-selected',selected?'true':'false');
       option.setAttribute('data-range',def.value);
-      option.appendChild(el('span','search-range-option-label',def.label));
+      option.appendChild(el('span','search-range-option-label',uiText(def.key,def.label)));
       if(selected){ var check=el('span','search-range-option-check','✓'); check.setAttribute('aria-hidden','true'); option.appendChild(check); }
       option.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); if(def.value==='custom') enterSessionSearchCustomRange(); else selectSessionSearchRange(def.value); };
       menu.appendChild(option);
     });
     menu.hidden=!sessionSearchRangeOpen;
   }
+  syncScopedLanguageUi=function(){
+    syncSessionSearchRangeControl();
+    if(sessionSearchRangeOpen) renderSessionSearchRangeMenu();
+  };
+  syncScopedLanguageUi();
   function closeSessionSearchRange(focusButton){
     if(!sessionSearchRangeOpen) return;
     sessionSearchRangeOpen=false; sessionSearchRangeView='presets'; sessionSearchCustomPickerTarget=''; renderSessionSearchRangeMenu(); syncSessionSearchRangeControl();
@@ -16924,8 +17015,16 @@ window.__CHANGELOG__ = ${changelogJson};
       syncCurrentLiveState(cur);
     }
   });
-  window.addEventListener('pagehide', function(){ flushVisit(true); });
-  window.addEventListener('beforeunload', function(){ flushVisit(true); });
+  function persistCurrentPanelState(){
+    stashSessionScroll(cur);
+    stashComposerDraft(cur);
+    rememberCurrentSession(cur);
+    flushVisit(true);
+  }
+  window.addEventListener('pagehide', persistCurrentPanelState);
+  window.addEventListener('beforeunload', persistCurrentPanelState);
+  var restoredSession=restoreCurrentSession();
+  if(restoredSession) select(restoredSession);
   }
   if(E2EE.enabled) startUnlockFlow();
   else initApp();

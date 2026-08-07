@@ -3317,7 +3317,9 @@ describe("POST /chat/new + /chat/fork + /chat/send (faked SDK)", () => {
       body: JSON.stringify({ text: "continue after restart" }),
     });
     expect(sent.status).toBe(200);
-    expect(queryCalls[0]?.options).toMatchObject({
+    // Background analyzers can issue their own SDK calls while the restarted
+    // app scans the page; the resumed chat call is the last one dispatched.
+    expect(queryCalls.at(-1)?.options).toMatchObject({
       resume: "fake-1",
       model: "claude-opus",
       effort: "xhigh",
@@ -4561,6 +4563,22 @@ describe("startServer port rollover", () => {
     cleanup.push(() => running.close());
 
     expect(running.port).toBeGreaterThan(takenPort);
+  });
+
+  it("detects an already-open panel after it reconnects", async () => {
+    const listener = net.createServer();
+    const port: number = await new Promise((resolve) => {
+      listener.listen(0, "127.0.0.1", () => resolve((listener.address() as net.AddressInfo).port));
+    });
+    await new Promise<void>((resolve) => listener.close(() => resolve()));
+    const fixture = appWithSpy(resolveConfig({ positionals: [], port: String(port) }));
+    const running = await startServer(fixture.config, 1, fixture.deps);
+    cleanup.push(() => running.close());
+
+    expect(running.hasConnectedPanel()).toBe(false);
+    const response = await fetch(`${running.url}/app-meta`);
+    expect(response.status).toBe(200);
+    expect(running.hasConnectedPanel()).toBe(true);
   });
 
   it("refuses a non-loopback bind without a passphrase", async () => {

@@ -54,6 +54,9 @@ describe("renderConsole", () => {
     expect(html).toContain("function toggleUiLanguage()");
     expect(html).toContain("attend.uiLanguage.v1");
     expect(html).toContain("搜索会话…");
+    expect(html).toContain("工作模式");
+    expect(html).toContain("最近 30 天");
+    expect(html).toContain("将下一条消息设为目标");
     expect(html).toContain("if(uiLanguage==='zh' && UI_COPY.zh[key]!=null)");
   });
 
@@ -63,6 +66,9 @@ describe("renderConsole", () => {
     expect(html).toContain("E2EE.rawFetch('/app-meta',{cache:'no-store'})");
     expect(html).toContain("if(next===SERVICE_INSTANCE_ID) return");
     expect(html).toContain("window.location.reload()");
+    expect(html).toContain("attend.currentSession.v1");
+    expect(html).toContain("attend.sessionDrafts.v1");
+    expect(html).toContain("if(restoredSession) select(restoredSession)");
   });
 
   it("renders tool titles separately from the collapse control", () => {
@@ -347,7 +353,7 @@ describe("renderConsole", () => {
     const sidebar = html.slice(html.indexOf("function renderSidebar(){"));
     expect(sidebar.indexOf("renderSessionSignals(meta,s);")).toBeLessThan(
       sidebar.indexOf(
-        "sessionPromptLine('it-firstline','First',s.title,null,promptAgeLabel(s,'first'))",
+        "sessionPromptLine('it-firstline',uiText('first','First'),s.title,null,promptAgeLabel(s,'first'))",
       ),
     );
   });
@@ -558,7 +564,7 @@ describe("renderConsole", () => {
       "var noSessionChangelog = byId('ph') ? byId('ph').cloneNode(true) : null;",
     );
     expect(html).toContain("replaceMessages(noSessionChangelog.cloneNode(true),'top');");
-    expect(html).toContain("sub.textContent='Recent changes';");
+    expect(html).toContain("sub.textContent=uiText('recentChanges','Recent changes');");
     expect(html).not.toContain(
       "Pick a session on the left to see its chat, then type below to continue it",
     );
@@ -699,8 +705,12 @@ describe("renderConsole", () => {
 
   it("reports a lost Attend connection instead of falling back to polling", () => {
     const html = renderConsole(view);
-    expect(html).toContain("showToast('Attend is unavailable.', 'error', true);");
-    expect(html).toContain("showToast('Attend service connection restored.', 'live-restored');");
+    expect(html).toContain(
+      "showToast(uiText('serviceUnavailable','Attend is unavailable.'), 'error', true);",
+    );
+    expect(html).toContain(
+      "showToast(uiText('serviceRestored','Attend service connection restored.'), 'live-restored');",
+    );
     expect(html).toContain("liveErrorToast.parentNode.removeChild(liveErrorToast)");
     expect(html).toContain(".toast.error { position: fixed; top: 1rem; left: 50%;");
     expect(html).toContain(".toast.live-restored { position: fixed; top: 1rem; left: 50%;");
@@ -811,7 +821,7 @@ describe("renderConsole", () => {
     expect(html).toContain(
       "var draft=composerOwnsDraftForSession(s) ? '' : draftTextForSession(s);",
     );
-    expect(html).toContain("draft?'Draft':'Latest'");
+    expect(html).toContain("draft?uiText('draft','Draft'):uiText('latest','Latest')");
     expect(html).not.toContain("draft-latest");
     expect(html).toContain("setIconButton(edit,'edit','Edit draft');");
     expect(html).toContain("if(cur!==s) select(s);");
@@ -1309,7 +1319,9 @@ describe("renderConsole", () => {
     expect(html).toContain("var sessionSearchRange='today';");
     expect(html).toContain("function sessionMatchesSearchRange(s)");
     expect(html).toContain("if(!sessionMatchesSearchRange(s)) return false;");
-    expect(html).toContain("{value:'custom',label:'Custom range…',compact:'Custom'}");
+    expect(html).toContain(
+      "{value:'custom',key:'customRange',label:'Custom range…',compact:'Custom'}",
+    );
     expect(html).toContain("function renderSessionSearchCustomRange(menu)");
     expect(html).toContain("scheduledatetime search-range-datetime");
     expect(html).toContain("function renderSessionSearchCustomPicker()");
@@ -1860,11 +1872,11 @@ describe("renderConsole", () => {
     expect(html).toContain("font-style: normal;");
     expect(html).not.toContain("--latest-label:");
     expect(html).toContain(
-      "sessionPromptLine('it-firstline','First',s.title,null,promptAgeLabel(s,'first'))",
+      "sessionPromptLine('it-firstline',uiText('first','First'),s.title,null,promptAgeLabel(s,'first'))",
     );
     expect(html).toContain("appendLatestPrompt(item, s, 'it-firstline')");
     expect(html).toContain(
-      "sessionPromptLine('sub-line it-firstline','First',cur.title,null,promptAgeLabel(cur,'first'))",
+      "sessionPromptLine('sub-line it-firstline',uiText('first','First'),cur.title,null,promptAgeLabel(cur,'first'))",
     );
     expect(html).toContain("appendLatestPrompt(sub, cur, 'sub-line it-firstline')");
     expect(html).not.toContain('id="tabtip"');
@@ -1924,7 +1936,7 @@ describe("renderConsole", () => {
     expect(html).toContain("renderSessionTitle(titleNode,session,'forktree-node-title');");
     expect(html).toContain("renderSessionSignals(signals,session);");
     expect(html).toContain(
-      "sessionPromptLine('it-firstline','First',session.title,null,promptAgeLabel(session,'first'))",
+      "sessionPromptLine('it-firstline',uiText('first','First'),session.title,null,promptAgeLabel(session,'first'))",
     );
     expect(html).toContain("foot.appendChild(sessionContextRow(session));");
     expect(html).toContain("syncForkTreeNodeStatus(s);");

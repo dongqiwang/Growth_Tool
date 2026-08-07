@@ -120,9 +120,20 @@ async function main(): Promise<void> {
   }
 
   if (config.open) {
-    await open(server.url).catch(() => {
-      /* headless / no browser — ignore */
-    });
+    // An existing dashboard detects the new service instance and reconnects in
+    // place. Give that tab a brief chance to claim the server before opening a
+    // browser, otherwise every restart/upgrade would create a duplicate panel.
+    const reconnectDeadline = Date.now() + 1_500;
+    while (!server.hasConnectedPanel() && Date.now() < reconnectDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (server.hasConnectedPanel()) {
+      process.stdout.write("panel: existing dashboard reconnected\n");
+    } else {
+      await open(server.url).catch(() => {
+        /* headless / no browser — ignore */
+      });
+    }
   }
 }
 

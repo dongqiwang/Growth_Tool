@@ -193,7 +193,11 @@ export function decodeCursorProjectDir(encoded: string): string | null {
     } catch {
       return null;
     }
-    const encodedName = (name: string) => name.replace(/[^A-Za-z0-9-]/g, "-");
+    // Cursor only replaces path separators in its project directory name. Keep
+    // underscores, spaces, and other filename characters intact while walking
+    // the real tree; normalizing them here makes valid workspaces impossible to
+    // resolve (macOS temp paths commonly contain an `_1` component).
+    const encodedName = (name: string) => name;
     const candidates = entries
       .filter((entry) => {
         const name = encodedName(entry.name);
